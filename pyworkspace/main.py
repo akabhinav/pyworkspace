@@ -55,6 +55,9 @@ async def lifespan(app: FastAPI):
 
     setup_tracing()
 
+    # Load plugins from manifest directory and discovery URLs
+    await _load_plugins(logger, settings)
+
     yield
 
     logger.info("pyworkspace_shutdown")
@@ -104,6 +107,37 @@ def _register_catalog() -> None:
     import pyworkspace.catalog.runtime  # noqa: F401
     import pyworkspace.catalog.monitoring  # noqa: F401
     import pyworkspace.catalog.search  # noqa: F401
+
+
+async def _load_plugins(logger, settings) -> None:
+    """Load plugins from filesystem manifests and HTTP discovery on startup."""
+    from pyworkspace.plugins.loader import PluginLoader
+    from pyworkspace.events import event_bus
+
+    loader = PluginLoader()
+
+    # 1. Load from manifest directory (YAML/JSON files, e.g., from ConfigMap)
+    manifest_dir = settings.PLUGIN_MANIFEST_DIR
+    manifests = loader.load_from_directory(manifest_dir)
+    for m in manifests:
+        if m.events.callback_url:
+            for event_type in m.events.subscribes:
+                event_bus.subscribe_webhook(event_type, m.events.callback_url)
+
+    # 2. Discover from HTTP endpoints
+    if settings.PLUGIN_DISCOVERY_URLS:
+        urls = [u.strip() for u in settings.PLUGIN_DISCOVERY_URLS.split(",") if u.strip()]
+        discovered = await loader.discover_plugins(urls)
+        for m in discovered:
+            if m.events.callback_url:
+                for event_type in m.events.subscribes:
+                    event_bus.subscribe_webhook(event_type, m.events.callback_url)
+
+    logger.info(
+        "plugins_loaded",
+        from_files=len(manifests),
+        from_discovery=len(discovered) if settings.PLUGIN_DISCOVERY_URLS else 0,
+    )
 
 
 app = create_app()

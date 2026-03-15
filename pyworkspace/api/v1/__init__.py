@@ -10,6 +10,7 @@ from pyworkspace.api.v1.services import router as services_router
 from pyworkspace.api.v1.agent import router as agent_router
 from pyworkspace.api.v1.snapshots import router as snapshots_router
 from pyworkspace.api.v1.billing import router as billing_router
+from pyworkspace.api.v1.plugins import router as plugins_router
 
 v1_router = APIRouter(prefix="/v1")
 v1_router.include_router(workspaces_router)
@@ -18,3 +19,4 @@ v1_router.include_router(services_router)
 v1_router.include_router(agent_router)
 v1_router.include_router(snapshots_router)
 v1_router.include_router(billing_router)
+v1_router.include_router(plugins_router)

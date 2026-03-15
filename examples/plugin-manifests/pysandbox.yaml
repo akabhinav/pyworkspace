@@ -1,0 +1,83 @@
+# Example plugin manifest for PySandbox
+# Drop this file into /etc/pyworkspace/plugins/ or POST it to /v1/plugins/register
+#
+# PySandbox team owns this manifest. They update it in their own repo
+# and deploy it alongside their service. PyWorkspace discovers it at runtime.
+
+kind: PyWorkspacePlugin
+name: pysandbox
+version: "1.0.0"
+display_name: PySandbox
+description: Isolated code execution environment with gVisor/Firecracker
+team: sandbox-team
+categories:
+  - runtime
+  - security
+
+base_url: http://pysandbox.internal:8080
+api_version: v1
+auth_type: api_key
+
+# PySandbox can run as a workspace sidecar (one per workspace)
+service:
+  image: yourorg/pysandbox:1.0.0
+  port: 8080
+  health_check:
+    endpoint: /healthz
+    interval_seconds: 15
+    timeout_seconds: 5
+  resources:
+    cpu: "1.0"
+    memory: "2Gi"
+    disk: "10Gi"
+  env:
+    SANDBOX_RUNTIME: gvisor
+    SANDBOX_MAX_EXECUTION_TIME: "300"
+    SANDBOX_MAX_MEMORY_MB: "512"
+
+# Tools the PyOz agent can call via HTTP
+tools:
+  - name: sandbox_create
+    description: Create a new isolated sandbox environment
+    endpoint: /v1/sandbox/create
+    method: POST
+    timeout_seconds: 30
+    input_schema:
+      type: object
+      properties:
+        language: { type: string, enum: [python, javascript, go, rust, java] }
+        timeout_seconds: { type: integer, default: 60 }
+      required: [language]
+
+  - name: sandbox_execute
+    description: Execute code in an isolated sandbox
+    endpoint: /v1/sandbox/execute
+    method: POST
+    timeout_seconds: 120
+    input_schema:
+      type: object
+      properties:
+        sandbox_id: { type: string }
+        code: { type: string }
+        stdin: { type: string }
+      required: [sandbox_id, code]
+
+  - name: sandbox_destroy
+    description: Destroy a sandbox and clean up resources
+    endpoint: /v1/sandbox/destroy
+    method: POST
+    timeout_seconds: 10
+
+# Event integration
+events:
+  publishes:
+    - sandbox.created
+    - sandbox.completed
+    - sandbox.failed
+    - sandbox.timeout
+  subscribes:
+    - workspace.created
+    - workspace.destroyed
+  callback_url: http://pysandbox.internal:8080/webhooks/events
+
+depends_on: []

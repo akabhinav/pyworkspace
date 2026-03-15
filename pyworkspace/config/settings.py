@@ -69,6 +69,11 @@ class Settings(BaseSettings):
     PYGATE_URL: str | None = None
     PYGATE_API_KEY: SecretStr | None = None
 
+    # Plugin system
+    PLUGIN_MANIFEST_DIR: str = "/etc/pyworkspace/plugins"  # load manifests from YAML files on startup
+    PLUGIN_DISCOVERY_URLS: str = ""  # comma-separated URLs for HTTP-based plugin discovery
+    PLUGIN_WEBHOOK_TIMEOUT: int = 10  # seconds for webhook delivery to plugins
+
     # LocalStack (cloud emulation)
     LOCALSTACK_IMAGE: str = "localstack/localstack-pro:latest"
     LOCALSTACK_PRO_KEY: SecretStr | None = None

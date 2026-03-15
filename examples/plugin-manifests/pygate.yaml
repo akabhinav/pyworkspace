@@ -1,0 +1,55 @@
+# Example plugin manifest for PyGate (LLM Router)
+# PyGate is a standalone service — it does NOT run as a workspace sidecar.
+# It provides tools that the PyOz agent can call for LLM completions.
+
+kind: PyWorkspacePlugin
+name: pygate
+version: "1.0.0"
+display_name: PyGate
+description: Unified LLM routing engine — model selection, fallback, rate limiting
+team: ai-platform-team
+categories:
+  - ai
+  - infrastructure
+
+base_url: http://pygate.internal:8443
+api_version: v1
+auth_type: api_key
+
+# No service spec — PyGate runs independently, not as a workspace sidecar
+# service: null
+
+tools:
+  - name: llm_complete
+    description: Generate text completion via any configured LLM model
+    endpoint: /v1/completions
+    method: POST
+    timeout_seconds: 120
+    input_schema:
+      type: object
+      properties:
+        model: { type: string }
+        prompt: { type: string }
+        max_tokens: { type: integer, default: 4096 }
+        temperature: { type: number, default: 0.7 }
+      required: [prompt]
+
+  - name: llm_embed
+    description: Generate text embeddings
+    endpoint: /v1/embeddings
+    method: POST
+    timeout_seconds: 30
+    input_schema:
+      type: object
+      properties:
+        model: { type: string }
+        input: { type: string }
+      required: [input]
+
+events:
+  publishes:
+    - llm.completion.finished
+    - llm.rate_limit.hit
+  subscribes: []
+
+depends_on: []

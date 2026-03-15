@@ -1,0 +1,64 @@
+# Example plugin manifest for PyMem (Knowledge/Memory Layer)
+# Standalone service for document ingestion and semantic search.
+# Used by PyChat, PySearch, PyAssist.
+
+kind: PyWorkspacePlugin
+name: pymem
+version: "1.0.0"
+display_name: PyMem
+description: Knowledge memory layer — ingest docs, semantic search, context assembly
+team: knowledge-team
+categories:
+  - ai
+  - search
+
+base_url: http://pymem.internal:8090
+api_version: v1
+auth_type: api_key
+
+tools:
+  - name: knowledge_ingest
+    description: Ingest a document or URL into the knowledge base
+    endpoint: /v1/ingest
+    method: POST
+    timeout_seconds: 60
+    input_schema:
+      type: object
+      properties:
+        source_type: { type: string, enum: [url, text, file] }
+        content: { type: string }
+        metadata: { type: object }
+      required: [source_type, content]
+
+  - name: knowledge_search
+    description: Semantic search across ingested knowledge
+    endpoint: /v1/search
+    method: POST
+    timeout_seconds: 10
+    input_schema:
+      type: object
+      properties:
+        query: { type: string }
+        top_k: { type: integer, default: 10 }
+        filters: { type: object }
+      required: [query]
+
+  - name: knowledge_context
+    description: Assemble relevant context for a query (RAG)
+    endpoint: /v1/context
+    method: POST
+    timeout_seconds: 15
+    input_schema:
+      type: object
+      properties:
+        query: { type: string }
+        max_tokens: { type: integer, default: 4000 }
+      required: [query]
+
+events:
+  publishes:
+    - knowledge.ingested
+    - knowledge.index.updated
+  subscribes: []
+
+depends_on: []

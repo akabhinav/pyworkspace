@@ -26,6 +26,7 @@ from pyworkspace.config.constants import (
 from pyworkspace.config.settings import get_settings
 from pyworkspace.core.resource_quota import validate_quota
 from pyworkspace.core.specs import ServiceSpec, WorkspaceSpec
+from pyworkspace.events import Event, EventType, event_bus
 
 logger = structlog.get_logger()
 
@@ -93,6 +94,19 @@ class WorkspaceProvisioner:
             name=spec.name,
             services=[s.name for s in spec.services],
         )
+
+        # Publish event — plugins like PyReview can react to workspace creation
+        await event_bus.publish(Event(
+            event_type=EventType.WORKSPACE_CREATED,
+            source="pyworkspace",
+            workspace_id=workspace_id,
+            org_id=spec.org_id,
+            payload={
+                "name": spec.name,
+                "tier": spec.tier,
+                "services": [s.name for s in spec.services],
+            },
+        ))
 
         return workspace
 
@@ -171,6 +185,14 @@ class WorkspaceProvisioner:
                 services_count=len(provisioned_services),
                 step=PROVISION_STATE_RUNNING,
             )
+
+            await event_bus.publish(Event(
+                event_type=EventType.WORKSPACE_PROVISIONED,
+                source="pyworkspace",
+                workspace_id=workspace_id,
+                org_id=workspace.get("org_id"),
+                payload={"services_count": len(provisioned_services)},
+            ))
 
             return workspace
 
