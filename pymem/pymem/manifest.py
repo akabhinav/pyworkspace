@@ -1,0 +1,75 @@
+"""Plugin manifest endpoint."""
+
+from __future__ import annotations
+
+from fastapi import APIRouter
+
+router = APIRouter()
+
+
+@router.get("/plugin/manifest")
+def get_manifest() -> dict:
+    """Return the plugin manifest."""
+    return {
+        "name": "pymem",
+        "version": "1.0.0",
+        "description": "Knowledge memory plugin for PyWorkspace - ingests documents, creates embeddings, and provides semantic search with RAG context assembly.",
+        "service": {
+            "image": "yourorg/pymem:1.0.0",
+            "port": 8090,
+            "resources": {
+                "cpu": "0.5",
+                "memory": "1Gi",
+                "disk": "5Gi",
+            },
+        },
+        "tools": [
+            {
+                "name": "knowledge_ingest",
+                "description": "Ingest a document into the knowledge store",
+                "endpoint": "/v1/ingest",
+                "method": "POST",
+                "parameters": {
+                    "content": {"type": "string", "required": True},
+                    "source": {"type": "string", "default": "manual"},
+                    "source_url": {"type": "string", "required": False},
+                    "metadata": {"type": "object", "default": {}},
+                    "chunk_size": {"type": "integer", "default": 500},
+                    "overlap": {"type": "integer", "default": 50},
+                },
+            },
+            {
+                "name": "knowledge_search",
+                "description": "Search the knowledge store for relevant chunks",
+                "endpoint": "/v1/search",
+                "method": "POST",
+                "parameters": {
+                    "query": {"type": "string", "required": True},
+                    "top_k": {"type": "integer", "default": 5},
+                    "min_score": {"type": "number", "default": 0.0},
+                    "filters": {"type": "object", "default": {}},
+                },
+            },
+            {
+                "name": "knowledge_context",
+                "description": "Assemble RAG context from the knowledge store",
+                "endpoint": "/v1/context",
+                "method": "POST",
+                "parameters": {
+                    "query": {"type": "string", "required": True},
+                    "max_tokens": {"type": "integer", "default": 2000},
+                    "top_k": {"type": "integer", "default": 5},
+                },
+            },
+        ],
+        "events": {
+            "publishes": [
+                "knowledge.ingested",
+                "knowledge.index.updated",
+            ],
+            "subscribes": [
+                "workspace.destroyed",
+            ],
+        },
+        "callback_url": "/webhooks/events",
+    }
