@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from pyworkspace.auth.middleware import CurrentUser
+from pyworkspace.db.repositories.workspace_repo import WorkspaceRepository
+from pyworkspace.db.session import get_db
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/agent", tags=["agent"])
 
@@ -14,14 +19,18 @@ class AgentExecuteRequest(BaseModel):
 
 
 @router.post("/execute")
-async def execute_agent_prompt(workspace_id: str, req: AgentExecuteRequest) -> dict:
+async def execute_agent_prompt(
+    workspace_id: str,
+    req: AgentExecuteRequest,
+    user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
     """Send a prompt to the PyOz agent. Returns execution result."""
-    from pyworkspace.api.v1.workspaces import _workspaces
-
-    workspace = _workspaces.get(workspace_id)
+    repo = WorkspaceRepository(db)
+    workspace = await repo.get_by_id(workspace_id)
     if not workspace:
         raise HTTPException(status_code=404, detail="Workspace not found")
-    if workspace.get("status") != "running" and workspace.get("status") != "provisioning":
+    if workspace.status not in ("running", "provisioning"):
         raise HTTPException(status_code=409, detail="Workspace not running")
 
     return {
@@ -33,11 +42,14 @@ async def execute_agent_prompt(workspace_id: str, req: AgentExecuteRequest) -> d
 
 
 @router.get("/status")
-async def get_agent_status(workspace_id: str) -> dict:
+async def get_agent_status(
+    workspace_id: str,
+    user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
     """Get agent health and current task."""
-    from pyworkspace.api.v1.workspaces import _workspaces
-
-    workspace = _workspaces.get(workspace_id)
+    repo = WorkspaceRepository(db)
+    workspace = await repo.get_by_id(workspace_id)
     if not workspace:
         raise HTTPException(status_code=404, detail="Workspace not found")
 
@@ -49,18 +61,18 @@ async def get_agent_status(workspace_id: str) -> dict:
 
 
 @router.get("/history")
-async def get_agent_history(workspace_id: str) -> list[dict]:
+async def get_agent_history(workspace_id: str, user: CurrentUser) -> list[dict]:
     """Get agent execution history."""
     return []
 
 
 @router.post("/stop")
-async def stop_agent(workspace_id: str) -> dict:
+async def stop_agent(workspace_id: str, user: CurrentUser) -> dict:
     """Stop current agent task."""
     return {"workspace_id": workspace_id, "status": "stopped"}
 
 
 @router.post("/restart")
-async def restart_agent(workspace_id: str) -> dict:
+async def restart_agent(workspace_id: str, user: CurrentUser) -> dict:
     """Restart agent pod."""
     return {"workspace_id": workspace_id, "status": "restarting"}

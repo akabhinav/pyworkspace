@@ -67,6 +67,19 @@ async def init_db() -> None:
         await conn.run_sync(Base.metadata.create_all)
 
 
+async def get_db() -> AsyncIterator[AsyncSession]:
+    """FastAPI dependency that yields an async DB session."""
+    session = _get_session_factory()()
+    try:
+        yield session
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        raise
+    finally:
+        await session.close()
+
+
 async def dispose_db() -> None:
     """Dispose the engine and release all pooled connections.
 

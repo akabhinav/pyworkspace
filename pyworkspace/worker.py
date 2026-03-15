@@ -30,6 +30,10 @@ celery_app.conf.update(
             "task": "pyworkspace.worker.record_all_usage",
             "schedule": 60.0,  # Every 60 seconds
         },
+        "cleanup-expired-workspaces": {
+            "task": "pyworkspace.worker.cleanup_expired_workspaces_task",
+            "schedule": 300.0,  # Every 5 minutes
+        },
     },
 )
 
@@ -88,6 +92,58 @@ def record_all_usage():
         pass
 
     _run_async(_record())
+
+
+@celery_app.task
+def cleanup_expired_workspaces_task():
+    """Celery beat task: pause/destroy workspaces that have exceeded their TTL."""
+    from pyworkspace.core.ttl_manager import cleanup_expired_workspaces
+    from pyworkspace.core.lifecycle import LifecycleManager
+    from pyworkspace.core.destroyer import WorkspaceDestroyer
+
+    async def _cleanup():
+        from pyworkspace.db.session import get_db_session
+
+        async with get_db_session() as session:
+            from sqlalchemy import select
+            from pyworkspace.db.models import Workspace
+
+            stmt = select(Workspace).where(
+                Workspace.status.in_(["running", "paused"])
+            )
+            result = await session.execute(stmt)
+            workspaces = result.scalars().all()
+
+            ws_dicts = []
+            for ws in workspaces:
+                ws_dicts.append({
+                    "id": ws.id,
+                    "name": ws.name,
+                    "status": ws.status,
+                    "spec": ws.spec or {},
+                    "k8s_namespace": ws.k8s_namespace,
+                    "dns_zone": ws.dns_zone,
+                    "created_at": ws.created_at,
+                    "owner_id": ws.owner_id,
+                })
+
+            lifecycle = LifecycleManager()
+            destroyer = WorkspaceDestroyer()
+            summary = await cleanup_expired_workspaces(
+                ws_dicts, lifecycle_manager=lifecycle, destroyer=destroyer
+            )
+
+            # Update statuses in DB
+            from pyworkspace.db.repositories.workspace_repo import WorkspaceRepository
+            repo = WorkspaceRepository(session)
+            for ws_id in summary.get("paused", []):
+                await repo.update_status(ws_id, "paused")
+            for ws_id in summary.get("destroyed", []):
+                await repo.update_status(ws_id, "destroyed")
+
+            return summary
+
+    return _run_async(_cleanup())
 
 
 @celery_app.task

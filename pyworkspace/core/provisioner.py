@@ -179,6 +179,9 @@ class WorkspaceProvisioner:
             workspace["error_message"] = str(e)
             workspace["updated_at"] = datetime.now(timezone.utc)
             logger.error("workspace_provision_failed", workspace_id=workspace_id, error=str(e))
+
+            # Rollback: clean up any resources that were partially provisioned
+            await self._rollback(workspace_id, namespace, dns_zone, provisioned_services)
             raise
 
     async def _provision_single_service(
@@ -237,6 +240,60 @@ class WorkspaceProvisioner:
         )
 
         return service_info
+
+
+    async def _rollback(
+        self,
+        workspace_id: str,
+        namespace: str,
+        dns_zone: str,
+        provisioned_services: list[dict],
+    ) -> None:
+        """Clean up partially provisioned resources on failure."""
+        logger.info(
+            "provision_rollback_started",
+            workspace_id=workspace_id,
+            services_to_rollback=len(provisioned_services),
+        )
+
+        # Remove DNS entries for provisioned services
+        if self.dns and dns_zone:
+            for svc_info in provisioned_services:
+                try:
+                    await self.dns.remove(dns_zone, svc_info["service_name"])
+                except Exception as dns_err:
+                    logger.warning(
+                        "rollback_dns_failed",
+                        workspace_id=workspace_id,
+                        service=svc_info["service_name"],
+                        error=str(dns_err),
+                    )
+
+        # Delete secrets for provisioned services
+        if self.secrets:
+            for svc_info in provisioned_services:
+                try:
+                    await self.secrets.delete(workspace_id, svc_info["service_name"])
+                except Exception as sec_err:
+                    logger.warning(
+                        "rollback_secret_failed",
+                        workspace_id=workspace_id,
+                        service=svc_info["service_name"],
+                        error=str(sec_err),
+                    )
+
+        # Delete the namespace (cascades to all K8s resources)
+        if self.k8s and namespace:
+            try:
+                await self.k8s.delete_namespace(namespace)
+            except Exception as k8s_err:
+                logger.warning(
+                    "rollback_namespace_failed",
+                    workspace_id=workspace_id,
+                    error=str(k8s_err),
+                )
+
+        logger.info("provision_rollback_completed", workspace_id=workspace_id)
 
 
 def _build_dependency_graph(services: list[ServiceSpec]) -> dict[str, list[str]]:
