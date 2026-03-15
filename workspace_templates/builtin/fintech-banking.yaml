@@ -1,0 +1,40 @@
+name: fintech-banking
+display_name: "Fintech Banking Platform"
+description: "Banking application stack with PostgreSQL, Kafka, Redis, LocalStack, and monitoring"
+category: fintech
+services:
+  - name: postgres
+    type: postgres
+    version: "16"
+    config:
+      db: banking
+      extensions: [uuid-ossp, pgcrypto]
+  - name: redis
+    type: redis
+    version: "7"
+    config:
+      mode: standalone
+      maxmemory: "1gb"
+  - name: kafka
+    type: kafka
+    config:
+      topics:
+        - {name: transactions, partitions: 6}
+        - {name: audit.events, partitions: 3}
+        - {name: notifications, partitions: 3}
+        - {name: fraud.alerts, partitions: 1}
+  - name: localstack
+    type: localstack
+    config:
+      services: [s3, sqs, sns, secretsmanager, ses, kms]
+  - name: elasticsearch
+    type: elasticsearch
+    config:
+      heap: "1g"
+  - name: prometheus
+    type: prometheus
+  - name: grafana
+    type: grafana
+    depends_on: [prometheus]
+  - name: jaeger
+    type: jaeger

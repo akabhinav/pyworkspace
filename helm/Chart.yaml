@@ -1,0 +1,8 @@
+apiVersion: v2
+name: pyworkspace
+description: PyWorkspace — Enterprise Environment-as-a-Service
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+maintainers:
+  - name: PyWorkspace Team

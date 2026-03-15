@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pyworkspace-api
+  labels:
+    app: pyworkspace
+    component: api
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: pyworkspace
+      component: api
+  template:
+    metadata:
+      labels:
+        app: pyworkspace
+        component: api
+    spec:
+      containers:
+        - name: pyworkspace-api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DATABASE_URL
+              value: "{{ .Values.postgres.url }}"
+            - name: REDIS_URL
+              value: "{{ .Values.redis.url }}"
+            - name: VAULT_ADDR
+              value: "{{ .Values.vault.addr }}"
+            - name: K8S_IN_CLUSTER
+              value: "true"
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 30

@@ -1,0 +1,21 @@
+name: django-postgres-redis
+display_name: "Django + PostgreSQL + Redis"
+description: "Django application with PostgreSQL database and Redis cache"
+category: backend
+services:
+  - name: postgres
+    type: postgres
+    version: "16"
+    config:
+      db: django_db
+      extensions: [uuid-ossp]
+  - name: redis
+    type: redis
+    version: "7"
+    config:
+      mode: standalone
+      maxmemory: "256mb"
+agent:
+  initial_prompt: |
+    You have a Django stack with PostgreSQL and Redis available.
+    Build whatever the user describes next.

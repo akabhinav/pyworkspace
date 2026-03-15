@@ -1,0 +1,31 @@
+replicaCount: 2
+
+image:
+  repository: pyworkspace/pyworkspace
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: false
+  host: pyworkspace.example.com
+
+resources:
+  limits:
+    cpu: "2"
+    memory: 4Gi
+  requests:
+    cpu: "1"
+    memory: 2Gi
+
+redis:
+  url: redis://redis:6379/0
+
+postgres:
+  url: postgresql+asyncpg://pyworkspace:pyworkspace@postgres:5432/pyworkspace
+
+vault:
+  addr: http://vault:8200

@@ -1,0 +1,40 @@
+name: microservices-full
+display_name: "Microservices Platform"
+description: "Multi-service topology with Kafka, multiple DBs, gateway infra"
+category: microservices
+services:
+  - name: postgres-users
+    type: postgres
+    config: {db: users}
+  - name: postgres-orders
+    type: postgres
+    config: {db: orders}
+  - name: mongodb-catalog
+    type: mongodb
+    config: {db: catalog}
+  - name: redis-session
+    type: redis
+    config: {maxmemory: "256mb"}
+  - name: redis-cache
+    type: redis_cache
+    config: {maxmemory: "512mb"}
+  - name: kafka
+    type: kafka
+    config:
+      topics:
+        - {name: user.events}
+        - {name: order.events}
+        - {name: inventory.events}
+  - name: elasticsearch
+    type: elasticsearch
+  - name: localstack
+    type: localstack
+    config:
+      services: [s3, sqs, sns, lambda, ses, secretsmanager]
+  - name: prometheus
+    type: prometheus
+  - name: grafana
+    type: grafana
+    depends_on: [prometheus]
+  - name: jaeger
+    type: jaeger

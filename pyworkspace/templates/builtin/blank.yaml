@@ -1,0 +1,9 @@
+name: blank
+display_name: "Blank Workspace"
+description: "Empty workspace — add services as needed"
+category: general
+services: []
+agent:
+  initial_prompt: |
+    You have a blank workspace. No services are provisioned yet.
+    Use the platform API to add services as needed.
