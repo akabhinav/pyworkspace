@@ -1,0 +1,60 @@
+name: pygate
+version: "1.0.0"
+description: "Unified LLM routing engine - routes requests to multiple LLM providers"
+
+service: null  # standalone, not a sidecar
+
+tools:
+  - name: llm_complete
+    description: "Send a completion request to an LLM provider"
+    endpoint: POST /v1/completions
+    input_schema:
+      type: object
+      properties:
+        model:
+          type: string
+          default: "claude-sonnet-4-20250514"
+        messages:
+          type: array
+          items:
+            type: object
+            properties:
+              role:
+                type: string
+              content:
+                type: string
+        max_tokens:
+          type: integer
+          default: 1024
+        temperature:
+          type: number
+          default: 0.7
+        stream:
+          type: boolean
+          default: false
+      required:
+        - messages
+
+  - name: llm_embed
+    description: "Generate embeddings for text input"
+    endpoint: POST /v1/embeddings
+    input_schema:
+      type: object
+      properties:
+        model:
+          type: string
+          default: "text-embedding-3-small"
+        input:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+      required:
+        - input
+
+events:
+  publishes:
+    - "llm.completion.finished"
+    - "llm.rate_limit.hit"
+  subscribes: []
