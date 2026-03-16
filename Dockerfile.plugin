@@ -1,0 +1,14 @@
+FROM python:3.11-slim
+
+ARG PLUGIN_REPO
+ARG PLUGIN_PKG
+
+RUN apt-get update && apt-get install -y --no-install-recommends git curl && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+RUN git clone ${PLUGIN_REPO} /tmp/plugin && \
+    pip install --no-cache-dir /tmp/plugin/${PLUGIN_PKG} && \
+    rm -rf /tmp/plugin
+
+CMD ["sh", "-c", "uvicorn ${PLUGIN_PKG}.main:app --host 0.0.0.0 --port ${PORT:-8080}"]

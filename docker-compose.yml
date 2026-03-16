@@ -15,8 +15,15 @@ services:
         condition: service_started
       minio:
         condition: service_started
+      pysandbox:
+        condition: service_healthy
+      pygate:
+        condition: service_healthy
+      pymem:
+        condition: service_healthy
     volumes:
       - ./workspace_templates:/app/workspace_templates:ro
+      - ./examples/plugin-manifests:/etc/pyworkspace/plugins:ro
     environment:
       - DATABASE_URL=postgresql+asyncpg://pyworkspace:pyworkspace@postgres:5432/pyworkspace
       - REDIS_URL=redis://redis:6379/0
@@ -24,6 +31,8 @@ services:
       - CELERY_RESULT_BACKEND=redis://redis:6379/2
       - VAULT_ADDR=http://vault:8200
       - MINIO_ENDPOINT=minio:9000
+      - PLUGIN_MANIFEST_DIR=/etc/pyworkspace/plugins
+      - PLUGIN_DISCOVERY_URLS=http://pysandbox:8080/plugin/manifest,http://pygate:8443/plugin/manifest,http://pymem:8090/plugin/manifest
 
   pyworkspace-worker:
     build: .
@@ -101,6 +110,61 @@ services:
     ports:
       - "9000:9000"
       - "9001:9001"
+
+  # Plugin services
+  pysandbox:
+    build:
+      context: .
+      dockerfile: Dockerfile.plugin
+      args:
+        PLUGIN_REPO: https://github.com/akabhinav/plugin-pysandbox.git
+        PLUGIN_PKG: pysandbox
+    ports:
+      - "8081:8080"
+    environment:
+      - PYSANDBOX_PORT=8080
+      - PYSANDBOX_API_KEY=sandbox-dev-key
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  pygate:
+    build:
+      context: .
+      dockerfile: Dockerfile.plugin
+      args:
+        PLUGIN_REPO: https://github.com/akabhinav/plugin-pygate.git
+        PLUGIN_PKG: pygate
+    ports:
+      - "8443:8443"
+    environment:
+      - PYGATE_PORT=8443
+      - PYGATE_API_KEY=pygate-dev-key
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8443/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  pymem:
+    build:
+      context: .
+      dockerfile: Dockerfile.plugin
+      args:
+        PLUGIN_REPO: https://github.com/akabhinav/plugin-pymem.git
+        PLUGIN_PKG: pymem
+    ports:
+      - "8090:8090"
+    environment:
+      - PYMEM_PORT=8090
+      - PYMEM_API_KEY=pymem-dev-key
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/v1/documents"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   prometheus:
     image: prom/prometheus:latest
