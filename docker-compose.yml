@@ -34,6 +34,24 @@ services:
       - PLUGIN_MANIFEST_DIR=/etc/pyworkspace/plugins
       - PLUGIN_DISCOVERY_URLS=http://pysandbox:8080/plugin/manifest,http://pygate:8443/plugin/manifest,http://pymem:8090/plugin/manifest
 
+  pyworkspace-ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.ui
+    ports:
+      - "8501:8501"
+    depends_on:
+      pyworkspace-api:
+        condition: service_started
+    environment:
+      - PYWORKSPACE_API_URL=http://pyworkspace-api:8080/v1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
   pyworkspace-worker:
     build: .
     command: celery -A pyworkspace.worker worker --loglevel=info -c 4

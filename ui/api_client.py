@@ -6,13 +6,14 @@ UI can always be demonstrated standalone.
 
 from __future__ import annotations
 
+import os
 import random
 import uuid
 from datetime import datetime, timedelta, timezone
 
 import httpx
 
-DEFAULT_BASE = "http://localhost:8000/v1"
+DEFAULT_BASE = os.environ.get("PYWORKSPACE_API_URL", "http://localhost:8000/v1")
 
 
 class PyWorkspaceClient:
